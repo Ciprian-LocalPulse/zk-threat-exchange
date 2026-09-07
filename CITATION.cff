@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software or its academic framework, please cite it as below."
+type: software
+authors:
+  - family-names: "Pleșca"
+    given-names: "Ciprian Ștefan"
+title: "zk-threat-exchange: Zero-Knowledge Polymorphic Threat Intelligence Network"
+version: 1.0.0
+date-released: 2026-09-07
+url: "https://github.com/Ciprian-LocalPulse/zk-threat-exchange"
+repository-code: "https://github.com/Ciprian-LocalPulse/zk-threat-exchange"
+license: MIT
+keywords:
+  - cybersecurity
+  - zero-knowledge-proofs
+  - schnorr-protocol
+  - threat-intelligence
+  - rust
+  - julia
+  - scheme
+  - golang
