@@ -1,7 +1,6 @@
 # zk-threat-exchange
-
 **Zero-Knowledge Polymorphic Threat Intelligence**
-
+![zk-threat-exchange banner](./docs/images/hero-banner.jpg)
 Author & Maintainer: **Ciprian Ștefan Pleșca**
 License: MIT (core) — see [LICENSE](./LICENSE)
 
