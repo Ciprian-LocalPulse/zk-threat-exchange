@@ -1,0 +1,32 @@
+{
+  "name": "zk-threat-exchange - SOC Phishing Alert Relay",
+  "author": "Ciprian Ștefan Pleșca",
+  "description": "Watches the enterprise-api /v1/commitments feed for new high-corroboration commitments and relays a notification to a SOC inbox/Slack channel, without ever handling the underlying raw witness data.",
+  "flow": [
+    {
+      "module": "webhook:CustomWebhook",
+      "name": "Receive zk-threat-exchange commitment",
+      "notes": "Point this at enterprise-api's outbound webhook (configure in dashboard: Settings > Webhooks). Payload matches the ThreatCommitment JSON shape from internal/handlers/handlers.go."
+    },
+    {
+      "module": "tools:FilterCondition",
+      "name": "Only high-confidence alerts",
+      "condition": "{{corroborations}} >= 3"
+    },
+    {
+      "module": "email:SendEmail",
+      "name": "Notify SOC on-call",
+      "template": {
+        "subject": "[zk-threat-exchange] New corroborated threat commitment",
+        "body": "Commitment: {{commitment}}\nFirst seen: {{received_at}}\nIndependent corroborations: {{corroborations}}\n\nNo raw log data was transmitted — this alert is backed by a zero-knowledge proof only."
+      }
+    },
+    {
+      "module": "slack:CreateMessage",
+      "name": "Post to #soc-alerts",
+      "channel": "#soc-alerts",
+      "text": "🔺 New corroborated threat commitment `{{commitment}}` ({{corroborations}} peers). See dashboard for details."
+    }
+  ],
+  "notes": "Import via Make.com > Scenarios > Import Blueprint. Requires a free Make.com account; no cost to run this automation for low-volume alerting tiers."
+}

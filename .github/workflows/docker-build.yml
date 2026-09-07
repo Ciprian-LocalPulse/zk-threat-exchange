@@ -1,0 +1,35 @@
+name: Docker build
+# Author: Ciprian Ștefan Pleșca
+#
+# Builds all three service images on every push to verify the Dockerfiles
+# stay in sync with the source trees. Does not push to a registry — add a
+# `docker/login-action` + `docker/build-push-action` step with registry
+# secrets when you're ready to publish images.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - dockerfile: deployments/core-node.Dockerfile
+            tag: zk-threat-exchange/core-node
+          - dockerfile: deployments/heuristics-engine.Dockerfile
+            tag: zk-threat-exchange/heuristics-engine
+          - dockerfile: deployments/enterprise-api.Dockerfile
+            tag: zk-threat-exchange/enterprise-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.target.tag }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.target.dockerfile }}
+          push: false
+          tags: ${{ matrix.target.tag }}:ci

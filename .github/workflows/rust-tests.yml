@@ -1,0 +1,34 @@
+name: Rust core-node tests
+# Author: Ciprian Ștefan Pleșca
+
+on:
+  push:
+    paths:
+      - "core-node/**"
+      - ".github/workflows/rust-tests.yml"
+  pull_request:
+    paths:
+      - "core-node/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            core-node/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core-node/Cargo.lock') }}
+      - name: cargo fmt --check
+        run: cargo fmt -- --check
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test
+        run: cargo test --all --verbose

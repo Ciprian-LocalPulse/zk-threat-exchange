@@ -1,0 +1,22 @@
+name: Scheme rule-mutator tests
+# Author: Ciprian Ștefan Pleșca
+
+on:
+  push:
+    paths:
+      - "rule-mutator/**"
+      - ".github/workflows/scheme-tests.yml"
+  pull_request:
+    paths:
+      - "rule-mutator/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Guile
+        run: sudo apt-get update && sudo apt-get install -y guile-3.0 || sudo apt-get install -y guile-2.2
+      - name: Run rule-mutator test suite
+        working-directory: rule-mutator/test
+        run: guile --no-auto-compile run_tests.scm

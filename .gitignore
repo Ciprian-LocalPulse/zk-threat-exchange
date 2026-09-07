@@ -1,0 +1,17 @@
+# Rust
+core-node/target/
+Cargo.lock
+
+# Julia
+heuristics-engine/Manifest.toml
+
+# Go
+enterprise-api/bin/
+*.exe
+
+# General
+.DS_Store
+.env
+*.log
+__pycache__/
+node_modules/

@@ -1,0 +1,40 @@
+# zk-threat-exchange :: local, zero-cost deployment
+# Author: Ciprian Ștefan Pleșca
+#
+# Usage (from repo root):
+#   docker-compose -f deployments/docker-compose.yml up -d
+
+version: "3.9"
+
+services:
+  zk-threat-node:
+    build:
+      context: ..
+      dockerfile: deployments/core-node.Dockerfile
+    container_name: zk-threat-node
+    environment:
+      - NODE_ID=local-node-1
+    restart: unless-stopped
+
+  heuristics-engine:
+    build:
+      context: ..
+      dockerfile: deployments/heuristics-engine.Dockerfile
+    container_name: zk-heuristics-engine
+    depends_on:
+      - zk-threat-node
+    restart: "no" # runs its test/inference batch once; swap CMD for a long-running service in production
+
+  enterprise-api:
+    build:
+      context: ..
+      dockerfile: deployments/enterprise-api.Dockerfile
+    container_name: zk-enterprise-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ZKT_ENV=development
+      - ZKT_JWT_SECRET=change-me-in-production
+    depends_on:
+      - zk-threat-node
+    restart: unless-stopped

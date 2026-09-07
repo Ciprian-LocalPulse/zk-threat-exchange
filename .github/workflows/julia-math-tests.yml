@@ -1,0 +1,29 @@
+name: Julia heuristics-engine tests
+# Author: Ciprian Ștefan Pleșca
+
+on:
+  push:
+    paths:
+      - "heuristics-engine/**"
+      - ".github/workflows/julia-math-tests.yml"
+  pull_request:
+    paths:
+      - "heuristics-engine/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: heuristics-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.10"
+      - name: Cache Julia packages
+        uses: julia-actions/cache@v2
+      - name: Instantiate project
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Run test suite
+        run: julia --project=. test/runtests.jl
