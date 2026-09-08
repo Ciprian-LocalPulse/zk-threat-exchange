@@ -28,11 +28,19 @@ impl GossipNode {
     pub fn new(node_id: &str, capacity: usize) -> (Self, broadcast::Receiver<GossipMessage>) {
         let (tx, rx) = broadcast::channel(capacity);
         (
-            GossipNode { node_id: node_id.to_string(), tx },
+            GossipNode {
+                node_id: node_id.to_string(),
+                tx,
+            },
             rx,
         )
     }
 
+    /// Public API for additional peers/components (e.g. `enterprise-api`) to
+    /// subscribe to this node's outbound gossip stream. Not yet called from
+    /// `main.rs`'s single-node demo, but part of the intended library
+    /// surface — see `docs/architecture.md`.
+    #[allow(dead_code)]
     pub fn subscribe(&self) -> broadcast::Receiver<GossipMessage> {
         self.tx.subscribe()
     }
@@ -50,7 +58,10 @@ impl GossipNode {
         let _ = self.tx.send(msg);
     }
 
-    /// Re-broadcast a message received from a peer, decrementing TTL.
+    /// Re-broadcast a message received from a peer, decrementing TTL. Will
+    /// be wired up once the real network transport (replacing the
+    /// in-process broadcast channel) lands — see `CHANGELOG.md`.
+    #[allow(dead_code)]
     pub fn relay(&self, mut msg: GossipMessage) {
         if msg.ttl == 0 {
             return;

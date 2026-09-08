@@ -25,9 +25,9 @@ var ErrForbidden = errors.New("insufficient role for this operation")
 type Role string
 
 const (
-	RoleViewer Role = "viewer"
+	RoleViewer  Role = "viewer"
 	RoleAnalyst Role = "analyst"
-	RoleAdmin  Role = "admin"
+	RoleAdmin   Role = "admin"
 )
 
 type Claims struct {

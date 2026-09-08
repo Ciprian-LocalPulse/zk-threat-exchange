@@ -1,0 +1,23 @@
+# CODEOWNERS
+# Author: Ciprian Ștefan Pleșca
+#
+# These owners are automatically requested for review when someone opens a
+# pull request touching the matching paths. See:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo, unless overridden below.
+*                           @cipriansplesca
+
+# Cryptography changes always need the maintainer's eyes.
+/core-node/src/zkp/         @cipriansplesca
+/docs/zero_knowledge_math.md @cipriansplesca
+
+# Rule-mutation logic and its safety gate.
+/rule-mutator/              @cipriansplesca
+
+# Auth / RBAC / billing — anything customer-facing and security-sensitive.
+/enterprise-api/internal/auth/     @cipriansplesca
+/enterprise-api/internal/handlers/ @cipriansplesca
+
+# CI/CD and release pipeline.
+/.github/                   @cipriansplesca

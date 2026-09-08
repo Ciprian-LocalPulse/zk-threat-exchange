@@ -1,47 +1,10 @@
-# zk-threat-exchange :: Docker build context exclusions
-# Build context is the repo root (see deployments/docker-compose.yml),
-# so this file keeps every image build (core-node, heuristics-engine,
-# enterprise-api) from shipping local toolchain state and version control
-# metadata into the container.
-
-# Version control
-.git/
-.gitignore
-.github/
-
-# Rust
-core-node/target/
-**/*.rs.bk
-
-# Julia
-heuristics-engine/.julia/
-heuristics-engine/Manifest.toml
-**/*.jl.cov
-**/*.jl.mem
-
-# Go
-enterprise-api/bin/
-**/*.exe
-**/*.test
-
-# Scheme
-rule-mutator/.guile-precompiled/
-
-# Editors / OS
-.vscode/
-.idea/
-.DS_Store
-*.swp
-
-# Docs and project meta (not needed inside runtime containers)
-docs/
+# Author: Ciprian Ștefan Pleșca
+.git
+.github
+docs
 *.md
-LICENSE
-CITATION.cff
-
-# Local env / secrets
-.env
-*.log
-
-# Node (in case tooling scripts pull in JS deps later)
-node_modules/
+core-node/target
+enterprise-api/bin
+heuristics-engine/Manifest.toml
+**/*.log
+.DS_Store

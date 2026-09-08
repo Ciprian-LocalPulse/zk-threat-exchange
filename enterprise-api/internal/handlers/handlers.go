@@ -19,10 +19,10 @@ import (
 // ThreatCommitment mirrors the public output of core-node's ZKP module: a
 // commitment plus a proof, never the underlying witness/log data.
 type ThreatCommitment struct {
-	Commitment string    `json:"commitment"`
-	NodeID     string    `json:"node_id"`
-	ReceivedAt time.Time `json:"received_at"`
-	Corroborations int   `json:"corroborations"`
+	Commitment     string    `json:"commitment"`
+	NodeID         string    `json:"node_id"`
+	ReceivedAt     time.Time `json:"received_at"`
+	Corroborations int       `json:"corroborations"`
 }
 
 // Server holds the (in-memory, demo-grade) enterprise API state. A real

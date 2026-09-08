@@ -1,6 +1,7 @@
 # Rust
+# Cargo.lock is intentionally committed (core-node is a binary application,
+# not a library) for reproducible builds — see cargo's own guidance.
 core-node/target/
-Cargo.lock
 
 # Julia
 heuristics-engine/Manifest.toml

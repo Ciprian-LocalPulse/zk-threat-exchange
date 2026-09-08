@@ -55,7 +55,9 @@ impl Witness {
         let mut bytes = [0u8; 16];
         bytes.copy_from_slice(&digest[0..16]);
         let w = u128::from_be_bytes(bytes) % (P - 1);
-        Witness { w: if w == 0 { 1 } else { w } }
+        Witness {
+            w: if w == 0 { 1 } else { w },
+        }
     }
 
     /// The public commitment y = g^w mod p. This is what gets published to
@@ -88,7 +90,11 @@ pub fn prove(witness: &Witness) -> ThreatProof {
     // s = r + c*w mod (p-1)
     let s = (r + (c % (P - 1)) * (witness.w % (P - 1))) % (P - 1);
 
-    ThreatProof { commitment: t, challenge: c, response: s }
+    ThreatProof {
+        commitment: t,
+        challenge: c,
+        response: s,
+    }
 }
 
 /// Verify a proof against the publicly known threat-indicator commitment `y`.

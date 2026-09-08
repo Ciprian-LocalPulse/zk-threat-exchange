@@ -31,10 +31,16 @@ async fn main() {
     pool.ingest(commitment, proof.clone());
     node.publish(commitment, proof, 8);
 
+    println!("[{node_id}] published threat commitment {commitment} without revealing the witness.");
     println!(
-        "[{node_id}] published threat commitment {commitment} without revealing the witness."
+        "[{node_id}] local pool size: {} (empty: {})",
+        pool.len(),
+        pool.is_empty()
     );
-    println!("[{node_id}] local pool size: {}", pool.len());
+    println!(
+        "[{node_id}] corroboration count for this commitment: {}",
+        pool.corroboration_count(commitment)
+    );
 
     if let Ok(msg) = rx.try_recv() {
         println!(

@@ -1,0 +1,22 @@
+# golangci-lint configuration for enterprise-api
+# Author: Ciprian Ștefan Pleșca
+# Run locally with: golangci-lint run ./...
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gofmt
+    - gosec
+
+issues:
+  exclude-rules:
+    - path: internal/auth/auth.go
+      # dev-only default secret is intentional and documented in cmd/server/main.go
+      linters:
+        - gosec
+      text: "G101"

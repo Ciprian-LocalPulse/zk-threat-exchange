@@ -1,10 +1,37 @@
 # zk-threat-exchange
+
 **Zero-Knowledge Polymorphic Threat Intelligence**
 
-![zk-threat-exchange banner](./assets/zk-threat-exchange%20banner.png)
-
-Author & Maintainer: **Ciprian Ștefan Pleșca**  
+Author & Maintainer: **Ciprian Ștefan Pleșca**
 License: MIT (core) — see [LICENSE](./LICENSE)
+
+[![Rust core-node tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/rust-tests.yml/badge.svg)](./.github/workflows/rust-tests.yml)
+[![Go enterprise-api tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/go-tests.yml/badge.svg)](./.github/workflows/go-tests.yml)
+[![Julia heuristics-engine tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/julia-math-tests.yml/badge.svg)](./.github/workflows/julia-math-tests.yml)
+[![Scheme rule-mutator tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/scheme-tests.yml/badge.svg)](./.github/workflows/scheme-tests.yml)
+[![Docker build](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/docker-build.yml/badge.svg)](./.github/workflows/docker-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+> Badges will render once this repository is pushed to GitHub and Actions
+> has run at least once — see [publishing instructions](#9-publishing-this-repository).
+
+---
+
+## Project Documentation Index
+
+| Doc | What's in it |
+|---|---|
+| [`docs/architecture.md`](./docs/architecture.md) | Full data-flow diagram and trust boundaries |
+| [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) | The ZKP protocol, proved properties, and honest limitations |
+| [`docs/enterprise_integration.md`](./docs/enterprise_integration.md) | Open-core model, auth, billing, SOC connectors |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | What's planned, phase by phase |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Version history (Keep a Changelog format) |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to contribute, ground rules, test matrix |
+| [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure policy |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Community standards |
+| [`AUTHORS.md`](./AUTHORS.md) | Project authorship |
+| [`NOTICE`](./NOTICE) | Third-party dependency license acknowledgements |
+| Per-module `README.md` | `core-node/`, `heuristics-engine/`, `rule-mutator/`, `enterprise-api/`, `deployments/` each have their own quickstart |
 
 ---
 
@@ -90,6 +117,26 @@ models, and rule-mutation engine in this repository are **working scaffolds**
 demonstrating the architecture end-to-end — not yet audited, production-grade
 cryptography. Do not use in a real SOC pipeline without a proper security audit
 and a real trusted-setup ceremony for the SNARK parameters.
+
+## 9. Publishing This Repository
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: zk-threat-exchange by Ciprian Ștefan Pleșca"
+git branch -M main
+git remote add origin https://github.com/cipriansplesca/zk-threat-exchange.git
+git push -u origin main
+```
+
+After the first push, GitHub Actions will run automatically (workflows live
+in [`.github/workflows/`](./.github/workflows/)) and the badges above will
+start reflecting real build status. If you use a different GitHub username,
+update it in:
+- This README's badge URLs,
+- `enterprise-api/go.mod` and its import paths,
+- `.github/CODEOWNERS`,
+- `.github/ISSUE_TEMPLATE/config.yml`.
 
 ## Author
 

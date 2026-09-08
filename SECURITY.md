@@ -1,87 +1,70 @@
 # Security Policy
 
-## Project status
+Maintained by **Ciprian Ștefan Pleșca**.
 
-`zk-threat-exchange` is a research and engineering scaffold. The
-zero-knowledge proof module, the tensor inference engine, and the
-rule-mutation engine demonstrate the protocol's architecture end to end,
-but they have **not been independently audited** and are **not yet backed
-by production-grade cryptographic parameters**. Do not deploy this project
-in a real SOC pipeline, and do not rely on it to protect real customer
-data, without first commissioning an audit and reviewing the limitations
-documented in `docs/zero_knowledge_math.md` and `docs/architecture.md`.
+## Reporting a Vulnerability
 
-That status makes responsible disclosure especially important: this is
-exactly the stage where a well-reported vulnerability has the most value
-and the least cost to fix.
-
-## Supported versions
-
-| Version | Supported |
-|---|---|
-| `main` branch | ✅ |
-| Tagged pre-1.0 releases | Best effort |
-
-There is no long-term support branch yet. Security fixes land on `main`
-and are back-ported to a tagged release only if a maintainer judges the
-release to still be in active use.
-
-## Reporting a vulnerability
-
-Please **do not** open a public GitHub issue for a security vulnerability.
+**Do not open a public GitHub issue for a security vulnerability.**
+Public issues are indexed and searchable — filing one for a live
+vulnerability effectively publishes an exploit advisory before a fix exists.
 
 Instead:
 
-1. Use GitHub's private vulnerability reporting feature on this repository
-   (**Security → Report a vulnerability**), or contact the maintainer
-   directly through the contact details on the maintainer's GitHub profile
-   if private reporting is unavailable.
-2. Include, where possible:
-   - A description of the vulnerability and its potential impact.
-   - Steps to reproduce, or a proof-of-concept.
-   - The component affected (`core-node`, `heuristics-engine`,
-     `rule-mutator`, or `enterprise-api`).
-   - Whether the issue affects the cryptographic construction itself, the
-     implementation, or the surrounding infrastructure (auth, gossip
-     transport, API).
+1. Report privately via GitHub's **"Report a vulnerability"** button under
+   the repository's **Security** tab (this opens a private advisory visible
+   only to the maintainer), **or**
+2. Contact the maintainer directly through the contact details on their
+   GitHub profile.
 
-You should expect an initial response within **5 business days**. We'll
-work with you to confirm the issue, assess severity, and agree on a
-disclosure timeline before any public write-up.
+Please include, where possible:
+- The affected component (`core-node`, `heuristics-engine`, `rule-mutator`,
+  or `enterprise-api`) and version/commit hash.
+- Steps to reproduce, or a minimal proof-of-concept.
+- The potential impact as you understand it (e.g. "allows recovering the
+  ZKP witness," "allows forging a valid proof for an arbitrary commitment,"
+  "allows privilege escalation past RBAC checks").
+
+## Disclosure Timeline
+
+- **Acknowledgement:** within 5 business days of the report.
+- **Initial assessment:** within 10 business days — confirming reproducibility
+  and severity.
+- **Fix or mitigation:** timeline depends on severity and complexity; the
+  reporter will be kept updated.
+- **Public disclosure:** coordinated with the reporter, normally after a fix
+  is released. Credit is given to the reporter unless they request
+  anonymity.
 
 ## Scope
 
 In scope:
+- The zero-knowledge proof implementation (`core-node/src/zkp/`) — proof
+  soundness, zero-knowledge property violations, witness leakage.
+- The gossip/P2P layer (`core-node/src/p2p/`) — message forgery, replay,
+  denial-of-service via malformed gossip.
+- The rule-mutation engine (`rule-mutator/`) — ability to bypass the
+  `eval_sandbox.scm` backtest gate and propagate a malicious/regressive rule.
+- The enterprise API (`enterprise-api/`) — authentication bypass, RBAC
+  bypass, injection, billing-meter manipulation.
 
-- The Schnorr/Fiat–Shamir proof implementation in `core-node/src/zkp`,
-  including soundness, completeness, and zero-knowledge property
-  violations.
-- Flaws in `memory_pool` or the gossip layer that would let an attacker
-  forge, replay, or suppress commitments.
-- Authentication and authorization flaws in `enterprise-api`, including
-  the HMAC token issuer and role-based access control.
-- Logic in `rule-mutator`'s backtest gate (`eval_sandbox.scm`) that could
-  let a malicious or drifting rule mutation bypass `accept-mutation?` and
-  propagate to the network.
-- Dependency vulnerabilities in `Cargo.lock`, `Project.toml`, or `go.mod`
-  with a demonstrable path to exploitation in this codebase.
+Out of scope (known, already documented):
+- The demo-sized cryptographic parameters (`P`, `G` in
+  `core-node/src/zkp/mod.rs`) are explicitly called out as non-production-sized
+  in `docs/zero_knowledge_math.md`. Reports about the small prime being
+  "insecure for production" are already tracked — see
+  [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) and
+  [`CHANGELOG.md`](./CHANGELOG.md) for the planned upgrade path. Reports that
+  demonstrate a *practical break* of the demo parameters (not just "the
+  group is too small in theory") are still welcome.
+- The built-in HMAC JWT issuer in `enterprise-api/internal/auth/` is
+  documented as a development-only stand-in for a real IdP
+  (see `docs/enterprise_integration.md`).
 
-Explicitly out of scope (already documented, tracked, and known):
+## Supported Versions
 
-- The reference group size (`P = 2^31 - 1`) being too small for
-  production use — this is a documented placeholder, not a
-  vulnerability report. See Section 3.4 of `MANIFESTO.md`.
-- The absence of a real P2P transport (the gossip layer currently runs
-  over an in-process `tokio::broadcast` channel).
-- The HMAC-based auth issuer being unsuitable for production identity
-  management — also documented, and slated for replacement with a real
-  identity provider.
+| Version | Supported |
+|---|---|
+| `0.1.x` (current) | ✅ |
 
-If you're unsure whether something is in scope, report it anyway — we'd
-rather triage a false positive than miss a real issue.
-
-## Disclosure policy
-
-We follow coordinated disclosure. Once a fix is available, we'll credit
-reporters (unless anonymity is requested) in the release notes and, where
-relevant, in `CITATION.cff`'s acknowledgments.
+This project is pre-1.0; there is no long-term-support branch yet. Security
+fixes land on `main` and are noted in `CHANGELOG.md` under `Security`.

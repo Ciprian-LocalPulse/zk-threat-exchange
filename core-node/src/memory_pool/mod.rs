@@ -23,7 +23,9 @@ pub struct MemoryPool {
 
 impl MemoryPool {
     pub fn new() -> Self {
-        Self { entries: HashMap::new() }
+        Self {
+            entries: HashMap::new(),
+        }
     }
 
     /// Verify and, if valid, insert a new threat commitment. Returns true if
@@ -45,7 +47,11 @@ impl MemoryPool {
             None => {
                 self.entries.insert(
                     commitment,
-                    PoolEntry { proof, first_seen_unix: now, seen_count: 1 },
+                    PoolEntry {
+                        proof,
+                        first_seen_unix: now,
+                        seen_count: 1,
+                    },
                 );
                 true
             }
@@ -61,7 +67,10 @@ impl MemoryPool {
     }
 
     pub fn corroboration_count(&self, commitment: u128) -> u32 {
-        self.entries.get(&commitment).map(|e| e.seen_count).unwrap_or(0)
+        self.entries
+            .get(&commitment)
+            .map(|e| e.seen_count)
+            .unwrap_or(0)
     }
 }
 
