@@ -142,3 +142,5 @@ update it in:
 
 **Ciprian Ștefan Pleșca**
 Project lead, architecture, and initial implementation.
+## 💖 Support & Funding
+If you find `zk-threat-exchange` valuable, read our [DONATE.md](./DONATE.md) to see how voluntary support funds independent security audits, production-grade cryptographic parameters, and ongoing maintenance.
