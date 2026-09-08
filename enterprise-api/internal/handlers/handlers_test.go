@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cipriansplesca/zk-threat-exchange/enterprise-api/internal/auth"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/auth"
 )
 
 func newTestServer() (*Server, *auth.TokenIssuer) {
