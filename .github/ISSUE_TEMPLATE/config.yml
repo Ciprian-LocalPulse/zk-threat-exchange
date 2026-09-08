@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🔒 Report a security vulnerability
-    url: https://github.com/cipriansplesca/zk-threat-exchange/security/advisories/new
+    url: https://github.com/Ciprian-LocalPulse/zk-threat-exchange/security/advisories/new
     about: Please do not report security vulnerabilities as public issues — see SECURITY.md.
   - name: 💬 General questions / discussion
-    url: https://github.com/cipriansplesca/zk-threat-exchange/discussions
+    url: https://github.com/Ciprian-LocalPulse/zk-threat-exchange/discussions
     about: Ask questions or discuss ideas that aren't a bug report or a concrete feature request.

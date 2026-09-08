@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest an idea or improvement for this project
 title: "[FEATURE] "
 labels: enhancement
-assignees: cipriansplesca
+assignees: Ciprian-LocalPulse
 ---
 
 ## Component

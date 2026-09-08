@@ -5,11 +5,11 @@
 Author & Maintainer: **Ciprian Ștefan Pleșca**
 License: MIT (core) — see [LICENSE](./LICENSE)
 
-[![Rust core-node tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/rust-tests.yml/badge.svg)](./.github/workflows/rust-tests.yml)
-[![Go enterprise-api tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/go-tests.yml/badge.svg)](./.github/workflows/go-tests.yml)
-[![Julia heuristics-engine tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/julia-math-tests.yml/badge.svg)](./.github/workflows/julia-math-tests.yml)
-[![Scheme rule-mutator tests](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/scheme-tests.yml/badge.svg)](./.github/workflows/scheme-tests.yml)
-[![Docker build](https://github.com/cipriansplesca/zk-threat-exchange/actions/workflows/docker-build.yml/badge.svg)](./.github/workflows/docker-build.yml)
+[![Rust core-node tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/rust-tests.yml/badge.svg)](./.github/workflows/rust-tests.yml)
+[![Go enterprise-api tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/go-tests.yml/badge.svg)](./.github/workflows/go-tests.yml)
+[![Julia heuristics-engine tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/julia-math-tests.yml/badge.svg)](./.github/workflows/julia-math-tests.yml)
+[![Scheme rule-mutator tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/scheme-tests.yml/badge.svg)](./.github/workflows/scheme-tests.yml)
+[![Docker build](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/docker-build.yml/badge.svg)](./.github/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 > Badges will render once this repository is pushed to GitHub and Actions
@@ -125,7 +125,7 @@ git init
 git add .
 git commit -m "Initial commit: zk-threat-exchange by Ciprian Ștefan Pleșca"
 git branch -M main
-git remote add origin https://github.com/cipriansplesca/zk-threat-exchange.git
+git remote add origin https://github.com/Ciprian-LocalPulse/zk-threat-exchange.git
 git push -u origin main
 ```
 

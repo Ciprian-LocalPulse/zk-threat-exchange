@@ -6,18 +6,18 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default owner for everything in the repo, unless overridden below.
-*                           @cipriansplesca
+*                           @Ciprian-LocalPulse
 
 # Cryptography changes always need the maintainer's eyes.
-/core-node/src/zkp/         @cipriansplesca
-/docs/zero_knowledge_math.md @cipriansplesca
+/core-node/src/zkp/         @Ciprian-LocalPulse
+/docs/zero_knowledge_math.md @Ciprian-LocalPulse
 
 # Rule-mutation logic and its safety gate.
-/rule-mutator/              @cipriansplesca
+/rule-mutator/              @Ciprian-LocalPulse
 
 # Auth / RBAC / billing — anything customer-facing and security-sensitive.
-/enterprise-api/internal/auth/     @cipriansplesca
-/enterprise-api/internal/handlers/ @cipriansplesca
+/enterprise-api/internal/auth/     @Ciprian-LocalPulse
+/enterprise-api/internal/handlers/ @Ciprian-LocalPulse
 
 # CI/CD and release pipeline.
-/.github/                   @cipriansplesca
+/.github/                   @Ciprian-LocalPulse

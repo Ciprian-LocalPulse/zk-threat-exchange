@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cipriansplesca/zk-threat-exchange/enterprise-api/internal/auth"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/auth"
 )
 
 // ThreatCommitment mirrors the public output of core-node's ZKP module: a

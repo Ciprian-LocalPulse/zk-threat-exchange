@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/cipriansplesca/zk-threat-exchange/enterprise-api/internal/auth"
-	"github.com/cipriansplesca/zk-threat-exchange/enterprise-api/internal/handlers"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/auth"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/handlers"
 )
 
 func main() {
