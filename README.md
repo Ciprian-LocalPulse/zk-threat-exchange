@@ -194,27 +194,30 @@ sequenceDiagram
 ## 3. The Zero-Knowledge Protocol
 
 The core primitive is a **non-interactive Schnorr proof of knowledge**,
-made non-interactive via the Fiat–Shamir heuristic. Given a public group
-generator $g$ and modulus $p$, and a witness $w$ derived from local
-evidence:
+made non-interactive via the Fiat–Shamir heuristic, running over
+**Ristretto255** — a prime-order group built on Curve25519, the same
+primitive family used by Signal, WireGuard, and Ed25519 (~128-bit security
+against the discrete-log problem). Given the Ristretto255 base point $G$,
+and a witness $w$ (a scalar) derived from local evidence:
 
 $$
-y = g^{w} \bmod p \qquad \text{(public commitment, published to the network)}
+y = w \cdot G \qquad \text{(public commitment, published to the network)}
 $$
 
 **Proof generation** — the prover picks a random nonce $r$, and computes:
 
 $$
-t = g^{r} \bmod p, \qquad c = H(g, y, t), \qquad s = r + c \cdot w \pmod{p-1}
+t = r \cdot G, \qquad c = H(G, y, t), \qquad s = r + c \cdot w \pmod{\ell}
 $$
 
-The output triple $(t, c, s)$ is published. Neither $w$ nor $r$ appears in
+where $\ell$ is the Ristretto255 group order. The output triple $(t, c, s)$
+is published as canonical 32-byte encodings. Neither $w$ nor $r$ appears in
 it.
 
-**Verification** — any peer recomputes $c' = H(g, y, t)$ and checks:
+**Verification** — any peer recomputes $c' = H(G, y, t)$ and checks:
 
 $$
-c' \stackrel{?}{=} c \qquad \text{and} \qquad g^{s} \stackrel{?}{\equiv} t \cdot y^{c} \pmod{p}
+c' \stackrel{?}{=} c \qquad \text{and} \qquad s \cdot G \stackrel{?}{\equiv} t + c \cdot y
 $$
 
 ```mermaid
@@ -223,15 +226,16 @@ sequenceDiagram
     participant P as Prover (core-node)
     participant V as Verifier (any peer)
 
-    Note over P: knows secret w such that y = g^w mod p
-    P->>P: pick random nonce r
-    P->>P: t = g^r mod p
-    P->>P: c = H(g, y, t)
-    P->>P: s = r + c·w mod (p-1)
+    Note over P: knows secret scalar w such that y = w·G (Ristretto255)
+    P->>P: pick random nonce r (64 bytes OS entropy, wide-reduced)
+    P->>P: t = r·G
+    P->>P: c = H(G, y, t)  — SHA-512, wide-reduced to a scalar
+    P->>P: s = r + c·w mod ℓ
     P->>V: send (t, c, s)  — never w or r
-    V->>V: c' = H(g, y, t)
+    V->>V: decompress y, t — reject if malformed
+    V->>V: c' = H(G, y, t)
     V->>V: check c' == c
-    V->>V: check g^s ≡ t · y^c (mod p)
+    V->>V: check s·G ≡ t + c·y
     alt both checks pass
         V-->>P: proof accepted — w known, never revealed
     else either check fails
@@ -242,7 +246,7 @@ sequenceDiagram
 | Property | Guarantee |
 |---|---|
 | **Completeness** | An honest prover who knows $w$ always convinces the verifier. |
-| **Soundness** | A prover without $w$ succeeds only with probability negligible in the discrete-log hardness of the group. |
+| **Soundness** | A prover without $w$ succeeds only with probability negligible in Ristretto255's discrete-log hardness (~128-bit). |
 | **Zero-knowledge** | The transcript $(t, c, s)$ is simulatable without knowledge of $w$, hence reveals nothing beyond "the prover knows $w$." |
 
 > Full derivation, honest limitations, and the SNARK upgrade path are in
@@ -415,10 +419,12 @@ Full detail in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 This project is an early-stage research/engineering scaffold. Stated
 plainly, not buried:
 
-1. **Cryptographic parameters are demo-scale.** The Schnorr group in
-   `core-node/src/zkp/mod.rs` uses a small prime for clarity and testability
-   — not a production-sized safe prime or elliptic-curve group. See
-   [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) §5.
+1. ~~Cryptographic parameters are demo-scale.~~ **Resolved in v0.2.0** —
+   `core-node/src/zkp/mod.rs` now runs over Ristretto255 (via
+   `curve25519-dalek`), a production-grade prime-order group at ~128-bit
+   security. The remaining crypto-hardening item is the SNARK migration for
+   compound predicates — see
+   [`docs/snark_migration_spike.md`](./docs/snark_migration_spike.md).
 2. **Gossip transport is in-process**, not yet a real network layer
    (`tokio::broadcast`, not `libp2p`).
 3. **The enterprise-api JWT issuer is a development stand-in** (HMAC-SHA256,
@@ -435,6 +441,7 @@ above — see [`docs/ROADMAP.md`](./docs/ROADMAP.md) for the planned path.
 |---|---|
 | [`docs/architecture.md`](./docs/architecture.md) | Full data-flow diagram and trust boundaries |
 | [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) | ZKP protocol, proofs of properties, SNARK migration path |
+| [`docs/snark_migration_spike.md`](./docs/snark_migration_spike.md) | Concrete SNARK migration design: proving system choice, circuit sketch, effort estimate |
 | [`docs/enterprise_integration.md`](./docs/enterprise_integration.md) | Open-core model, auth, billing, SOC connectors |
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | Phase-by-phase plan |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Version history (Keep a Changelog) |

@@ -1,0 +1,26 @@
+[package]
+name = "zk-threat-core-node"
+version = "0.2.0"
+edition = "2021"
+authors = ["Ciprian Ștefan Pleșca"]
+description = "P2P gossip node with zero-knowledge threat-indicator proofs"
+license = "MIT"
+
+[[bin]]
+name = "zk-node"
+path = "src/main.rs"
+
+[dependencies]
+sha2 = "0.10"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+tokio = { version = "1", features = ["full"] }
+# Production-grade prime-order group for the ZKP module (same primitive
+# family used by Signal, WireGuard, and Ed25519). Replaces the toy
+# small-prime Schnorr group used in v0.1.0 — see docs/zero_knowledge_math.md.
+curve25519-dalek = { version = "4", features = ["rand_core"] }
+# Pinned: newer zeroize releases require the edition2024 Cargo feature,
+# which is not yet stable on the Rust toolchain this project targets.
+zeroize = "=1.7.0"

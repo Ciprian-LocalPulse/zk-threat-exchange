@@ -10,10 +10,9 @@ breaking changes.
 ## [Unreleased]
 
 ### Planned
-- Replace the demo Schnorr group (`P = 2^31 - 1`) with a production-sized
-  safe prime or an elliptic-curve group (Curve25519 / BLS12-381).
-- Evaluate migrating `core-node/src/zkp/` to a general-purpose zk-SNARK
-  (Groth16 or PLONK via `arkworks`) to support richer statement predicates.
+- Implement the SNARK migration described in
+  `docs/snark_migration_spike.md` once compound-predicate requirements are
+  confirmed from real deployment needs.
 - Replace the in-process `tokio::broadcast` gossip transport with a real
   network layer (`libp2p` or a raw QUIC transport) for genuine multi-host
   deployment.
@@ -21,6 +20,39 @@ breaking changes.
   OIDC/SAML SSO support.
 - Persistent storage for `core-node::memory_pool` and `enterprise-api`
   (currently both in-memory only; state is lost on restart).
+
+## [0.2.0] — 2026-09-08
+
+**Cryptographic hardening (Roadmap Phase 1, partial).**
+
+### Changed
+- **BREAKING:** `core-node/src/zkp/` now runs over **Ristretto255** (via
+  `curve25519-dalek`) instead of the v0.1.0 toy 31-bit Mersenne-prime
+  multiplicative group. `Witness::public_commitment()` and
+  `ThreatProof`'s fields now return/store `[u8; 32]` canonical byte
+  encodings instead of `u128` integers.
+- **BREAKING:** `memory_pool::MemoryPool` and `p2p::GossipMessage` updated
+  to use the new `memory_pool::Commitment` (`[u8; 32]`) type in place of
+  `u128` throughout.
+- `verify()` now rejects malformed/non-canonical input bytes gracefully
+  (returns `false`) instead of assuming well-formed peer input.
+- Witness derivation and the Fiat-Shamir challenge now use SHA-512 wide
+  reduction (`Scalar::from_bytes_mod_order_wide`) instead of a 32-byte
+  reduction, avoiding modulo bias relative to the group order.
+
+### Added
+- Three new `core-node` tests: malformed-commitment rejection, tampered-proof
+  rejection, and distinct-witness-distinct-commitment.
+- `memory_pool::MemoryPool::get_proof` / `first_seen` accessors (also fixes
+  a `cargo clippy` dead-code lint from the fields being write-only).
+- `docs/snark_migration_spike.md` — a concrete design document (chosen
+  proving system, circuit sketch, effort estimate) for the future SNARK
+  migration.
+
+### Security
+- The v0.1.0 demo-scale ZKP group (documented as insecure from initial
+  release) has been fully replaced. See
+  `docs/zero_knowledge_math.md`'s "Change history" section.
 
 ## [0.1.0] — 2026-09-07
 
