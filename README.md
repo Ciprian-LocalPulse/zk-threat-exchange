@@ -1,9 +1,13 @@
+<div align="center">
+
 # zk-threat-exchange
 
-**Zero-Knowledge Polymorphic Threat Intelligence**
+### Zero-Knowledge Polymorphic Threat Intelligence
 
-Author & Maintainer: **Ciprian Ștefan Pleșca**
-License: MIT (core) — see [LICENSE](./LICENSE)
+*A four-language systems architecture for privacy-preserving, self-mutating threat detection*
+
+**Ciprian Ștefan Pleșca**
+Independent Researcher & Systems Architect
 
 [![Rust core-node tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/rust-tests.yml/badge.svg)](./.github/workflows/rust-tests.yml)
 [![Go enterprise-api tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/go-tests.yml/badge.svg)](./.github/workflows/go-tests.yml)
@@ -11,136 +15,460 @@ License: MIT (core) — see [LICENSE](./LICENSE)
 [![Scheme rule-mutator tests](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/scheme-tests.yml/badge.svg)](./.github/workflows/scheme-tests.yml)
 [![Docker build](https://github.com/Ciprian-LocalPulse/zk-threat-exchange/actions/workflows/docker-build.yml/badge.svg)](./.github/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Made with Rust](https://img.shields.io/badge/core-Rust-orange?logo=rust)](./core-node)
+[![Made with Go](https://img.shields.io/badge/api-Go-00ADD8?logo=go)](./enterprise-api)
+[![Made with Julia](https://img.shields.io/badge/inference-Julia-9558B2?logo=julia)](./heuristics-engine)
+[![Made with Scheme](https://img.shields.io/badge/rules-Scheme-lightgrey)](./rule-mutator)
 
-> Badges will render once this repository is pushed to GitHub and Actions
-> has run at least once — see [publishing instructions](#9-publishing-this-repository).
+</div>
 
 ---
 
-## Project Documentation Index
+## Abstract
 
-| Doc | What's in it |
+Threat-intelligence sharing today forces a false choice: an organization can
+either withhold evidence of an attack (protecting its own confidentiality) or
+disclose it (protecting the community, at the cost of exposing internal logs,
+topology, and defensive gaps). **zk-threat-exchange** removes this trade-off
+by replacing raw evidence disclosure with a non-interactive zero-knowledge
+proof of knowledge: a node proves *"I observed evidence consistent with
+threat signature X"* without revealing the evidence itself. The published
+artifact — a public commitment plus a Schnorr/Fiat-Shamir proof — carries
+verifiable signal but zero exploitable information. A companion tensor-based
+inference layer (Julia) scores observed events against known attack
+archetypes, and a homoiconic rule-mutation engine (Scheme) allows detection
+logic to rewrite itself at runtime when a statistically significant
+behavioral drift is observed — subject to a mandatory regression-testing
+gate before any mutation is allowed to propagate. This document describes
+the architecture, the cryptographic protocol, and the engineering trade-offs
+made at the current `v0.1.0` stage.
+
+---
+
+## Table of Contents
+
+1. [System Overview](#1-system-overview)
+2. [Architecture](#2-architecture)
+3. [The Zero-Knowledge Protocol](#3-the-zero-knowledge-protocol)
+4. [Self-Mutating Detection Rules](#4-self-mutating-detection-rules)
+5. [Technology Stack — Rationale](#5-technology-stack--rationale)
+6. [Repository Layout](#6-repository-layout)
+7. [Quickstart](#7-quickstart)
+8. [Enterprise Edition (Open Core)](#8-enterprise-edition-open-core)
+9. [Roadmap](#9-roadmap)
+10. [Known Limitations](#10-known-limitations)
+11. [Documentation Index](#11-documentation-index)
+12. [Publishing / Contributing](#12-publishing--contributing)
+13. [Author](#13-author)
+
+---
+
+## 1. System Overview
+
+```mermaid
+flowchart LR
+    subgraph Host["Protected Host / SOC"]
+        L[("Raw incident logs")]
+    end
+
+    subgraph Core["core-node — Rust"]
+        W["Witness w
+        (derived locally,
+        never transmitted)"]
+        ZKP["ZKP Proof
+        Schnorr / Fiat-Shamir"]
+        Pool[("memory_pool
+        verified commitments")]
+    end
+
+    subgraph Net["Gossip Network"]
+        G(("P2P broadcast
+        TTL-bounded"))
+    end
+
+    subgraph Infer["heuristics-engine — Julia"]
+        Tensor["Feature tensor
+        entropy · timing · rarity"]
+        Score["Cosine similarity vs
+        attack archetypes"]
+        Risk["Posterior risk
+        (local + corroboration)"]
+    end
+
+    subgraph Mutator["rule-mutator — Scheme"]
+        Rule["Detection rule
+        (s-expression AST)"]
+        Sandbox{{"eval_sandbox
+        backtest gate"}}
+        NewRule["Rule generation N+1"]
+    end
+
+    subgraph API["enterprise-api — Go"]
+        Ingest["/v1/commitments/ingest"]
+        Dash["Dashboard + Billing"]
+        Hook["SOC Webhook
+        (Make.com)"]
+    end
+
+    L -->|"local only"| W
+    W -->|"prove()"| ZKP
+    ZKP -->|"public commitment"| Pool
+    Pool -->|"publish()"| G
+    G -->|"ingest() + verify()"| Pool
+    L -.->|"feature extraction"| Tensor
+    Tensor --> Score
+    Pool -->|"corroboration count"| Risk
+    Score --> Risk
+    Risk -->|"drift detected"| Rule
+    Rule --> Sandbox
+    Sandbox -->|"accept-mutation? = true"| NewRule
+    NewRule -.->|"gossiped"| G
+    Pool --> Ingest
+    Ingest --> Dash
+    Dash --> Hook
+
+    style W fill:#2d1b4e,stroke:#8b5cf6,color:#fff
+    style ZKP fill:#1e3a5f,stroke:#3b82f6,color:#fff
+    style Pool fill:#1e3a5f,stroke:#3b82f6,color:#fff
+    style G fill:#3f2d1b,stroke:#f59e0b,color:#fff
+    style Rule fill:#1b3f2d,stroke:#10b981,color:#fff
+    style Sandbox fill:#1b3f2d,stroke:#10b981,color:#fff
+    style NewRule fill:#1b3f2d,stroke:#10b981,color:#fff
+    style Ingest fill:#3f1b2d,stroke:#ec4899,color:#fff
+    style Dash fill:#3f1b2d,stroke:#ec4899,color:#fff
+```
+
+**Trust boundary, stated precisely:** raw evidence (`L`) never crosses out of
+the host process. Everything that leaves `core-node` — to the gossip
+network, to `heuristics-engine`, or to `enterprise-api` — is either a
+zero-knowledge proof, a statistical feature vector, or an aggregate count.
+No component downstream of `core-node` can reconstruct the witness `w`.
+
+---
+
+## 2. Architecture
+
+### 2.1 Component responsibilities
+
+| Component | Language | Responsibility | Never touches |
+|---|---|---|---|
+| `core-node` | Rust | Witness derivation, ZKP generation/verification, gossip, proof pool | — (owns the trust boundary) |
+| `heuristics-engine` | Julia | Tensor scoring of event features vs. attack archetypes; posterior risk | Raw logs, witness `w` |
+| `rule-mutator` | Scheme | Self-rewriting detection rules; sandboxed regression gate | Raw logs, witness `w` |
+| `enterprise-api` | Go | AuthN/RBAC, billing metering, SOC integration surface | Raw logs, witness `w`, private keys |
+
+### 2.2 Cross-node propagation
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as core-node (Node A)
+    participant Net as Gossip Network
+    participant B as core-node (Node B)
+    participant H as heuristics-engine
+    participant M as rule-mutator
+
+    A->>A: detect incident, derive witness w
+    A->>A: prove(w) → ThreatProof
+    A->>Net: publish(commitment, proof, ttl)
+    Net->>B: relay(GossipMessage)
+    B->>B: memory_pool.ingest(commitment, proof)
+    Note over B: verify() succeeds without<br/>learning w
+    B->>H: forward local feature vector
+    H->>H: score_event() vs archetypes
+    H->>H: posterior_risk(similarity, corroboration)
+    alt drift detected (attacker evolved pattern)
+        H->>M: suggest new threshold
+        M->>M: mutate_rule(old_rule, field, value)
+        M->>M: backtest(new_rule, labeled_samples)
+        alt accept-mutation? = true
+            M->>Net: gossip new rule generation
+        else regression detected
+            M->>M: discard mutation, keep old_rule
+        end
+    end
+```
+
+---
+
+## 3. The Zero-Knowledge Protocol
+
+The core primitive is a **non-interactive Schnorr proof of knowledge**,
+made non-interactive via the Fiat–Shamir heuristic. Given a public group
+generator $g$ and modulus $p$, and a witness $w$ derived from local
+evidence:
+
+$$
+y = g^{w} \bmod p \qquad \text{(public commitment, published to the network)}
+$$
+
+**Proof generation** — the prover picks a random nonce $r$, and computes:
+
+$$
+t = g^{r} \bmod p, \qquad c = H(g, y, t), \qquad s = r + c \cdot w \pmod{p-1}
+$$
+
+The output triple $(t, c, s)$ is published. Neither $w$ nor $r$ appears in
+it.
+
+**Verification** — any peer recomputes $c' = H(g, y, t)$ and checks:
+
+$$
+c' \stackrel{?}{=} c \qquad \text{and} \qquad g^{s} \stackrel{?}{\equiv} t \cdot y^{c} \pmod{p}
+$$
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Prover (core-node)
+    participant V as Verifier (any peer)
+
+    Note over P: knows secret w such that y = g^w mod p
+    P->>P: pick random nonce r
+    P->>P: t = g^r mod p
+    P->>P: c = H(g, y, t)
+    P->>P: s = r + c·w mod (p-1)
+    P->>V: send (t, c, s)  — never w or r
+    V->>V: c' = H(g, y, t)
+    V->>V: check c' == c
+    V->>V: check g^s ≡ t · y^c (mod p)
+    alt both checks pass
+        V-->>P: proof accepted — w known, never revealed
+    else either check fails
+        V-->>P: proof rejected
+    end
+```
+
+| Property | Guarantee |
 |---|---|
-| [`docs/architecture.md`](./docs/architecture.md) | Full data-flow diagram and trust boundaries |
-| [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) | The ZKP protocol, proved properties, and honest limitations |
-| [`docs/enterprise_integration.md`](./docs/enterprise_integration.md) | Open-core model, auth, billing, SOC connectors |
-| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | What's planned, phase by phase |
-| [`CHANGELOG.md`](./CHANGELOG.md) | Version history (Keep a Changelog format) |
-| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to contribute, ground rules, test matrix |
-| [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure policy |
-| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Community standards |
-| [`AUTHORS.md`](./AUTHORS.md) | Project authorship |
-| [`NOTICE`](./NOTICE) | Third-party dependency license acknowledgements |
-| Per-module `README.md` | `core-node/`, `heuristics-engine/`, `rule-mutator/`, `enterprise-api/`, `deployments/` each have their own quickstart |
+| **Completeness** | An honest prover who knows $w$ always convinces the verifier. |
+| **Soundness** | A prover without $w$ succeeds only with probability negligible in the discrete-log hardness of the group. |
+| **Zero-knowledge** | The transcript $(t, c, s)$ is simulatable without knowledge of $w$, hence reveals nothing beyond "the prover knows $w$." |
+
+> Full derivation, honest limitations, and the SNARK upgrade path are in
+> [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md).
 
 ---
 
-## 1. The Vision
+## 4. Self-Mutating Detection Rules
 
-Threat intelligence sharing is broken at its foundation: to report an attack, an
-organization must expose exactly the data it can least afford to expose — internal
-logs, infrastructure topology, and often the fingerprints of its own defensive
-gaps. That single fact is why threat-sharing consortia stay small, slow, and full
-of stale or sanitized-to-uselessness data.
+Detection rules are represented as **data** (s-expressions), not compiled
+matchers — a direct consequence of Scheme's homoiconicity. "The rule
+rewrites itself" is literally "a new list is produced."
 
-**zk-threat-exchange** removes the trade-off. Using zero-knowledge proofs
-(zk-SNARKs), a node can prove *"I observed an indicator of compromise consistent
-with signature X"* without revealing the witness — the raw logs, the compromised
-host, or the internal topology that produced that observation. The network gets a
-verifiable signal. The organization keeps its data.
+```mermaid
+stateDiagram-v2
+    [*] --> RuleV1: initial rule authored
 
-## 2. Why This Stack?
+    RuleV1 --> Evaluating: incoming event
+    Evaluating --> RuleV1: no drift detected
 
-Every language in this repository was chosen for a property the problem actually
-needs, not for novelty:
+    Evaluating --> DriftDetected: heuristics-engine reports
+    DriftDetected --> Mutating: mutate_rule(field, new_threshold)
+    Mutating --> Sandboxed: candidate rule generation
 
-| Layer | Language | Why |
+    state Sandboxed {
+        [*] --> Backtest
+        Backtest --> CheckAccuracy
+        CheckAccuracy --> CheckFalsePositives
+    }
+
+    Sandboxed --> Rejected: accuracy regresses OR new false positives
+    Sandboxed --> RuleV2: accept-mutation? = true
+
+    Rejected --> RuleV1: discard candidate, keep serving
+    RuleV2 --> Gossiped: broadcast to network
+    Gossiped --> [*]: new generation active network-wide
+```
+
+Every mutation is diffable and auditable — the previous rule generation is
+never modified in place, only superseded. See
+[`rule-mutator/README.md`](./rule-mutator/README.md) for the predicate
+vocabulary (`gt`/`lt`/`and`/`or`/`not`) and the sandbox's acceptance
+criteria.
+
+---
+
+## 5. Technology Stack — Rationale
+
+```mermaid
+pie showData
+    title Language distribution (by LOC)
+    "Go — enterprise-api" : 31
+    "Rust — core-node" : 25.5
+    "Scheme — rule-mutator" : 19
+    "Julia — heuristics-engine" : 15.9
+    "Makefile / tooling" : 6
+    "Dockerfile" : 2.6
+```
+
+| Layer | Language | Why this language, specifically |
 |---|---|---|
-| P2P networking + ZKP proof generation | **Rust** | Memory safety without a garbage collector, fearless concurrency for gossip propagation, and a mature `arkworks`/`bellman`-class cryptography ecosystem. |
-| Tensor analysis & threat inference | **Julia** | C-like numerical performance with math-native syntax, ideal for scoring attack vectors as tensors and running probabilistic inference at line rate. |
-| Polymorphic detection rules | **Scheme** | Code-as-data (homoiconicity) lets detection rules rewrite themselves at runtime via macro/AST manipulation when a malware mutation is observed — something a static YARA-rule engine structurally cannot do. |
-| Enterprise API / monetization | **Go** | Boring, fast, easy to operate gRPC/REST surface for paying customers, with a mature SSO/JWT/RBAC ecosystem. |
+| P2P + ZKP | **Rust** | Memory safety without a GC; fearless concurrency for gossip fan-out; mature `arkworks`/`bellman`-class cryptography ecosystem for the SNARK migration path. |
+| Tensor inference | **Julia** | C-like numerical performance with math-native syntax; ideal for scoring attack vectors as tensors at line rate without a Python/NumPy FFI boundary. |
+| Detection rules | **Scheme** | Homoiconicity (code-as-data) makes runtime rule rewriting a first-class, auditable operation — not a plugin-reload hack. |
+| Enterprise API | **Go** | Operationally boring by design: fast compilation, a single static binary, and a mature RBAC/SSO ecosystem for the customer-facing surface. |
 
-## 3. The Moat
+---
 
-The defensible core isn't any single component — it's the intersection: a
-gossip network that only propagates *verified-without-disclosure* proofs, feeding
-a rule engine that can mutate its own detection logic as those proofs arrive. That
-combination of applied cryptography, metaprogramming, and real-time tensor
-inference is not something a competitor bolts on in a sprint.
-
-## 4. Repository Layout
+## 6. Repository Layout
 
 ```
 zk-threat-exchange/
-├── core-node/          # Rust: P2P gossip + ZKP circuits + in-memory proof pool
-├── heuristics-engine/  # Julia: tensor models + probabilistic threat inference
+├── core-node/          # Rust:   P2P gossip + ZKP circuits + in-memory proof pool
+├── heuristics-engine/  # Julia:  tensor models + probabilistic threat inference
 ├── rule-mutator/       # Scheme: self-rewriting detection rules (macros + AST)
-├── enterprise-api/     # Go: gRPC/REST SaaS layer, auth, billing hooks
-├── deployments/        # docker-compose + Make.com automation blueprints
-├── docs/               # Architecture, ZK math, enterprise integration
-└── .github/workflows/  # CI: rust tests, julia tests, docker build
+├── enterprise-api/     # Go:     REST SaaS layer, auth, RBAC, billing
+├── deployments/        # Dockerfiles, docker-compose, Make.com blueprints
+├── docs/                # architecture · zero-knowledge math · enterprise integration · roadmap
+└── .github/             # CI workflows, issue/PR templates, CODEOWNERS
 ```
 
-## 5. Quickstart (Zero Cost, Local Only)
+Each module directory has its own `README.md` with a component-specific
+quickstart and test instructions.
+
+---
+
+## 7. Quickstart
 
 Requires only Docker and Docker Compose — no cloud account needed.
 
 ```bash
-git clone https://github.com/<your-username>/zk-threat-exchange.git
+git clone https://github.com/Ciprian-LocalPulse/zk-threat-exchange.git
 cd zk-threat-exchange
 docker-compose -f deployments/docker-compose.yml up -d
 ```
 
-This brings up three containers: the Rust P2P node, the Julia heuristics
-engine, and the Go enterprise API gateway (running in open-source/local mode,
-no license key required).
+This starts three containers: the Rust P2P node, the Julia heuristics
+engine (runs its test/inference batch), and the Go enterprise API gateway
+on `localhost:8080`, in open-source/local mode — no license key required.
 
-## 6. Enterprise Edition (Open Core)
-
-The core protocol (`core-node`, `heuristics-engine`, `rule-mutator`) is open
-source under MIT, forever — that's what earns community trust and, more
-practically, community-contributed threat data.
-
-The **Enterprise Edition** (`enterprise-api` in hosted form) adds:
-- SOC integration connectors (Splunk, CrowdStrike, Sentinel)
-- Corporate SSO (SAML/OIDC) and RBAC
-- SLA-backed 24/7 support
-- Usage-based billing on decrypted-verification volume / connected nodes
-
-See [`docs/enterprise_integration.md`](./docs/enterprise_integration.md).
-
-## 7. Project Status
-
-This is an early-stage research/engineering project. The ZKP circuit, tensor
-models, and rule-mutation engine in this repository are **working scaffolds**
-demonstrating the architecture end-to-end — not yet audited, production-grade
-cryptography. Do not use in a real SOC pipeline without a proper security audit
-and a real trusted-setup ceremony for the SNARK parameters.
-
-## 9. Publishing This Repository
+Running each component's native test suite:
 
 ```bash
-git init
-git add .
-git commit -m "Initial commit: zk-threat-exchange by Ciprian Ștefan Pleșca"
-git branch -M main
-git remote add origin https://github.com/Ciprian-LocalPulse/zk-threat-exchange.git
-git push -u origin main
+# Rust
+cd core-node && cargo fmt -- --check && cargo clippy --all-targets -- -D warnings && cargo test
+
+# Go
+cd enterprise-api && go vet ./... && go test ./...
+
+# Scheme
+cd rule-mutator/test && guile --no-auto-compile run_tests.scm
+
+# Julia
+cd heuristics-engine && julia --project=. test/runtests.jl
 ```
 
-After the first push, GitHub Actions will run automatically (workflows live
-in [`.github/workflows/`](./.github/workflows/)) and the badges above will
-start reflecting real build status. If you use a different GitHub username,
-update it in:
-- This README's badge URLs,
-- `enterprise-api/go.mod` and its import paths,
-- `.github/CODEOWNERS`,
-- `.github/ISSUE_TEMPLATE/config.yml`.
+---
 
-## Author
+## 8. Enterprise Edition (Open Core)
+
+The core protocol (`core-node`, `heuristics-engine`, `rule-mutator`) is open
+source under MIT, permanently. The **Enterprise Edition** wraps it with:
+
+- SOC integration connectors (Splunk, CrowdStrike, Microsoft Sentinel)
+- Corporate SSO (SAML/OIDC) and role-based access control
+- SLA-backed support
+- Usage-based billing on verification volume / connected nodes
+
+See [`docs/enterprise_integration.md`](./docs/enterprise_integration.md) for
+the full model, including the billing metering implementation.
+
+---
+
+## 9. Roadmap
+
+```mermaid
+gantt
+    title zk-threat-exchange — indicative roadmap (not calendar-committed)
+    dateFormat X
+    axisFormat %s
+
+    section Phase 1 — Crypto hardening
+    Production-sized group / EC migration     :p1a, 0, 3
+    SNARK feasibility (Groth16 / PLONK)        :p1b, after p1a, 3
+    Independent security review                :p1c, after p1b, 2
+
+    section Phase 2 — Network transport
+    libp2p / QUIC gossip transport             :p2a, after p1a, 3
+    Peer discovery + transport-layer signing   :p2b, after p2a, 2
+
+    section Phase 3 — Persistence & scale
+    Persistent memory_pool + API storage       :p3a, after p2a, 3
+    Load testing                                :p3b, after p3a, 2
+
+    section Phase 4 — Enterprise readiness
+    Real OIDC/SAML SSO                          :p4a, after p3a, 3
+    Native SOC connectors                       :p4b, after p4a, 3
+
+    section Phase 5 — Detection intelligence
+    Trained archetype library                   :p5a, after p1b, 4
+    Expanded rule-mutator predicate vocabulary  :p5b, after p5a, 2
+```
+
+Full detail in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+
+---
+
+## 10. Known Limitations
+
+This project is an early-stage research/engineering scaffold. Stated
+plainly, not buried:
+
+1. **Cryptographic parameters are demo-scale.** The Schnorr group in
+   `core-node/src/zkp/mod.rs` uses a small prime for clarity and testability
+   — not a production-sized safe prime or elliptic-curve group. See
+   [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) §5.
+2. **Gossip transport is in-process**, not yet a real network layer
+   (`tokio::broadcast`, not `libp2p`).
+3. **The enterprise-api JWT issuer is a development stand-in** (HMAC-SHA256,
+   dependency-free) — not a vetted auth library or IdP integration.
+
+Do not deploy this in a production SOC pipeline without addressing the
+above — see [`docs/ROADMAP.md`](./docs/ROADMAP.md) for the planned path.
+
+---
+
+## 11. Documentation Index
+
+| Document | Contents |
+|---|---|
+| [`docs/architecture.md`](./docs/architecture.md) | Full data-flow diagram and trust boundaries |
+| [`docs/zero_knowledge_math.md`](./docs/zero_knowledge_math.md) | ZKP protocol, proofs of properties, SNARK migration path |
+| [`docs/enterprise_integration.md`](./docs/enterprise_integration.md) | Open-core model, auth, billing, SOC connectors |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | Phase-by-phase plan |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Version history (Keep a Changelog) |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution ground rules, test matrix |
+| [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure policy |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Community standards |
+| [`AUTHORS.md`](./AUTHORS.md) | Authorship |
+| [`NOTICE`](./NOTICE) | Third-party license acknowledgements |
+
+---
+
+## 12. Publishing / Contributing
+
+```bash
+git add .
+git commit -m "docs: academic-style README with architecture diagrams"
+git push origin main
+```
+
+Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for
+the ground rules (no real incident data in fixtures, mandatory sandbox
+regression testing for rule-mutation changes, full test matrix before a
+PR). Security issues should go through the private disclosure process in
+[`SECURITY.md`](./SECURITY.md), not a public issue.
+
+---
+
+## 13. Author
+
+<div align="center">
 
 **Ciprian Ștefan Pleșca**
-Project lead, architecture, and initial implementation.
-## 💖 Support & Funding
-If you find `zk-threat-exchange` valuable, read our [DONATE.md](./DONATE.md) to see how voluntary support funds independent security audits, production-grade cryptographic parameters, and ongoing maintenance.
+*Project lead, architecture, and initial implementation*
+
+[![GitHub](https://img.shields.io/badge/GitHub-Ciprian--LocalPulse-181717?logo=github)](https://github.com/Ciprian-LocalPulse)
+
+</div>
