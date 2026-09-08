@@ -41,6 +41,12 @@ async fn main() {
         "[{node_id}] corroboration count for this commitment: {}",
         pool.corroboration_count(commitment)
     );
+    if let Some(first_seen) = pool.first_seen(commitment) {
+        println!("[{node_id}] this commitment was first accepted at unix time {first_seen}.");
+    }
+    if pool.get_proof(commitment).is_some() {
+        println!("[{node_id}] stored proof is retrievable for audit purposes.");
+    }
 
     if let Ok(msg) = rx.try_recv() {
         println!(

@@ -72,6 +72,18 @@ impl MemoryPool {
             .map(|e| e.seen_count)
             .unwrap_or(0)
     }
+
+    /// Retrieve the accepted proof for a commitment, e.g. so `enterprise-api`
+    /// or a dashboard can re-display the raw proof bytes for audit purposes.
+    pub fn get_proof(&self, commitment: u128) -> Option<&ThreatProof> {
+        self.entries.get(&commitment).map(|e| &e.proof)
+    }
+
+    /// Unix timestamp (seconds) at which this commitment was first accepted
+    /// into the pool — used for age-based prioritization/expiry policies.
+    pub fn first_seen(&self, commitment: u128) -> Option<u64> {
+        self.entries.get(&commitment).map(|e| e.first_seen_unix)
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +104,17 @@ mod tests {
         assert!(!pool.ingest(commitment, proof));
         assert_eq!(pool.len(), 1);
         assert_eq!(pool.corroboration_count(commitment), 2);
+
+        // Confirm the stored proof and first-seen timestamp are retrievable.
+        assert!(pool.get_proof(commitment).is_some());
+        assert!(pool.first_seen(commitment).unwrap() > 0);
+    }
+
+    #[test]
+    fn get_proof_and_first_seen_return_none_for_unknown_commitment() {
+        let pool = MemoryPool::new();
+        assert!(pool.get_proof(999).is_none());
+        assert!(pool.first_seen(999).is_none());
     }
 
     #[test]
