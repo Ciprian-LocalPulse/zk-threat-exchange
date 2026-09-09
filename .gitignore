@@ -2,6 +2,9 @@
 # Cargo.lock is intentionally committed (core-node is a binary application,
 # not a library) for reproducible builds — see cargo's own guidance.
 core-node/target/
+# Also ignore a stray root-level target/ in case `cargo build` is ever run
+# from the repo root by mistake instead of from core-node/.
+/target/
 
 # Julia
 heuristics-engine/Manifest.toml
