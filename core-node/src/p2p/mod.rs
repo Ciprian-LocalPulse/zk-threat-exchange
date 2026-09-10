@@ -194,7 +194,10 @@ impl GossipNode {
     /// Explicitly dial a known peer address. Not needed when mDNS discovery
     /// is available (LAN / Docker Compose network), but useful for
     /// wide-area bootstrap peers and for deterministic tests.
-    pub async fn dial(&self, addr: Multiaddr) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    pub async fn dial(
+        &self,
+        addr: Multiaddr,
+    ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         self.command_tx
             .send(Command::Dial(addr))
             .await

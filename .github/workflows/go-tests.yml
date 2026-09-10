@@ -53,4 +53,12 @@ jobs:
       - name: go build
         run: go build ./...
       - name: go test
-        run: go test ./... -v
+        # -p 1: run test packages one at a time, not in parallel. Both
+        # internal/store and internal/handlers connect to the SAME shared
+        # Postgres service container and call Reset() (TRUNCATE) as part of
+        # their setup — running those two packages' test binaries
+        # concurrently (Go's default) lets them stomp on each other's data
+        # mid-test, causing flaky "expected N rows, got M" failures. This
+        # doesn't affect within-package test ordering (already serial,
+        # since we never call t.Parallel()) — only cross-package.
+        run: go test ./... -v -p 1
