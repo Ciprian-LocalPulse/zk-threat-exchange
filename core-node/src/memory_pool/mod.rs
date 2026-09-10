@@ -217,14 +217,12 @@ mod tests {
 
     #[test]
     fn state_persists_across_reopening_the_same_file() {
-        let tmp_dir = std::env::temp_dir().join(format!(
-            "zk-threat-exchange-test-{}",
-            std::process::id()
-        ));
-        
+        let tmp_dir =
+            std::env::temp_dir().join(format!("zk-threat-exchange-test-{}", std::process::id()));
+
         // Creăm efectiv directorul înainte de a-l folosi
         std::fs::create_dir_all(&tmp_dir).expect("Eșec la crearea directorului temporar");
-        
+
         let db_path = tmp_dir.join("pool.sqlite3");
         let db_path_str = db_path.to_str().unwrap();
 
