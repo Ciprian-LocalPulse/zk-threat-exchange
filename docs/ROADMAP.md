@@ -8,29 +8,51 @@ already shipped.
 
 ## Phase 1 — Cryptographic hardening (pre-1.0 blocker)
 
-- [ ] Replace the demo-sized Schnorr group with a production-sized safe
-      prime or an elliptic-curve group (Curve25519 / BLS12-381).
-- [ ] Evaluate and prototype a migration to a general-purpose zk-SNARK
-      (Groth16 or PLONK via `arkworks`) for richer statement predicates
-      beyond "I know a discrete log."
+- [x] Replace the demo-sized Schnorr group with a production-sized group —
+      shipped in `v0.2.0` using Ristretto255 via `curve25519-dalek`.
+- [x] Design (not yet implement) the migration to a general-purpose
+      zk-SNARK — see [`docs/snark_migration_spike.md`](./snark_migration_spike.md)
+      for the chosen proving system, circuit sketch, and effort estimate.
+- [ ] Implement the SNARK migration once compound-predicate requirements are
+      confirmed (see the spike doc's "Decision point" section).
 - [ ] Independent security review of `core-node/src/zkp/`.
 
 ## Phase 2 — Real network transport
 
-- [ ] Replace the in-process `tokio::broadcast` gossip channel with
-      `libp2p` (or a raw QUIC transport) for genuine multi-host gossip.
-- [ ] Add peer discovery (mDNS for local networks, a bootstrap-node list
-      for wide-area deployment).
+- [x] Replace the in-process `tokio::broadcast` gossip channel with
+      `libp2p` — shipped in `v0.3.0` (TCP + Noise + Yamux transport,
+      `gossipsub` pub-sub, matching the pattern used by Ethereum 2.0/IPFS).
+- [x] Add peer discovery — mDNS shipped in `v0.3.0` for local-network
+      discovery (LAN / Docker Compose network).
+- [ ] Add a bootstrap-node list / DHT-based discovery for wide-area
+      deployment (mDNS alone doesn't cross network boundaries).
 - [ ] Add message signing at the transport layer (distinct from the ZKP
-      itself) to prevent gossip-layer spoofing/DoS.
+      itself) to prevent gossip-layer spoofing/DoS. Note: `gossipsub` with
+      `MessageAuthenticity::Signed` (already configured) does sign messages
+      with the libp2p identity key — evaluate whether this alone is
+      sufficient or whether an additional application-layer signature is
+      warranted.
+- [ ] Load-test gossipsub mesh behavior beyond 2-node test coverage —
+      current test suite validates 2-node direct-dial delivery only.
+- [ ] Independent review of the new networking code (like the ZKP module,
+      "compiles and passes 2-node tests" is not the same bar as "reviewed
+      and field-tested").
 
 ## Phase 3 — Persistence & scale
 
-- [ ] Persistent storage for `core-node::memory_pool` (currently in-memory
-      only; state is lost on restart).
-- [ ] Persistent storage for `enterprise-api` (Postgres or similar) in place
-      of the current in-memory map.
-- [ ] Load testing and horizontal scaling story for `enterprise-api`.
+- [x] Persistent storage for `core-node::memory_pool` — shipped in `v0.4.0`
+      using embedded SQLite (`rusqlite`), namespaced per `NODE_ID`.
+- [x] Persistent storage for `enterprise-api` — shipped in `v0.4.0` using
+      PostgreSQL (`internal/store`), with a CI-verified integration test
+      suite (16 tests against a real Postgres service container).
+- [ ] Load testing and horizontal scaling story for `enterprise-api`. Note:
+      the store layer is already safe for multiple `enterprise-api`
+      replicas against one database (no in-process state), but this hasn't
+      been load-tested.
+- [ ] Database connection pooling tuning (`database/sql`'s default pool
+      settings are used as-is; revisit under real load).
+- [ ] Backup/restore story for both the SQLite pool files and the Postgres
+      database — currently neither is backed up automatically.
 
 ## Phase 4 — Enterprise readiness
 

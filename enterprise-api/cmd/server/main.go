@@ -10,6 +10,7 @@ import (
 
 	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/auth"
 	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/handlers"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/store"
 )
 
 func main() {
@@ -19,8 +20,23 @@ func main() {
 		log.Println("WARNING: ZKT_JWT_SECRET not set, using an insecure development default.")
 	}
 
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		// Sensible default for `docker-compose up` (see deployments/docker-compose.yml's
+		// postgres service) and for a bare `psql` on localhost during local dev.
+		databaseURL = "postgres://postgres:postgres@localhost:5432/zkthreat?sslmode=disable"
+		log.Println("WARNING: DATABASE_URL not set, using local-dev default.")
+	}
+
+	st, err := store.Open(databaseURL)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer st.Close()
+	log.Println("connected to database and applied schema migration.")
+
 	issuer := auth.NewTokenIssuer(secret)
-	server := handlers.NewServer(issuer)
+	server := handlers.NewServer(issuer, st)
 
 	// Convenience: mint a short-lived admin token on boot in dev mode so the
 	// quickstart in README.md works without a separate identity provider.

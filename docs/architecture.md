@@ -14,7 +14,8 @@
    ZKP proof (Schnorr/Fiat-Shamir)  ──── prove(witness)
                 │
                 ▼
-   Gossip broadcast (P2P, TTL-bounded)  ──── GossipNode::publish()
+   Gossip broadcast (real libp2p: TCP+Noise+Yamux,
+   gossipsub pub-sub, mDNS discovery)  ──── GossipNode::publish()
                 │
         ┌───────┴────────┐
         ▼                ▼
@@ -47,7 +48,8 @@
 - Produces a `ThreatProof` that a peer can verify against a public
   `commitment` without learning `w`.
 - Runs the gossip layer (`p2p::GossipNode`) and the local `memory_pool`,
-  which only ever stores public commitments + proofs + corroboration counts.
+  which only ever stores public commitments + proofs + corroboration counts,
+  persisted to an embedded SQLite database (survives restarts as of v0.4.0).
 
 ### heuristics-engine (Julia)
 - Consumes locally observed event features (entropy, timing, destination
@@ -69,7 +71,10 @@
 - The only component that talks to paying customers directly.
 - Wraps the open-source core in gRPC/REST, adds JWT-based auth and
   role-based access control (`viewer` / `analyst` / `admin`), and meters
-  usage (`BillingMeter`) for invoicing.
+  usage for invoicing.
+- Persists commitments, dashboard data, and billing counters to PostgreSQL
+  (`internal/store`) as of v0.4.0 — state survives restarts and supports
+  running multiple API replicas against the same database.
 
 ## Trust boundaries
 
@@ -82,16 +87,16 @@
 
 ## Known limitations (be honest with yourself before a real deployment)
 
-1. The ZKP module ships a Schnorr sigma-protocol over a **small** prime
-   for clarity/testability. Production use requires a cryptographically
-   sized group (2048-bit safe prime, or an elliptic curve like Curve25519 /
-   BLS12-381) and ideally a real zk-SNARK circuit (Groth16/PLONK via
-   `arkworks` or `bellman`) if you need to prove richer statements than
-   "I know a discrete log."
+1. ~~The ZKP module ships a Schnorr sigma-protocol over a small prime.~~
+   **Resolved in v0.2.0** — now runs over Ristretto255 (~128-bit security).
+   The remaining crypto item is the SNARK migration for compound predicates
+   — see `docs/snark_migration_spike.md`.
 2. `enterprise-api`'s JWT implementation is a minimal HMAC-SHA256 scheme for
    demonstration; swap in a vetted library or a real IdP (Auth0, Okta,
    Keycloak) before handling real customer credentials.
-3. The gossip layer here is an in-process `tokio::broadcast` channel, which
-   models the fan-out logic but is not yet a real network transport — wiring
-   in `libp2p` (or a raw QUIC/TCP layer) is the next step toward a real
-   multi-host deployment.
+3. ~~The gossip layer is an in-process `tokio::broadcast` channel.~~
+   **Resolved in v0.3.0** — `core-node/src/p2p/` now runs real `libp2p`
+   networking (TCP + Noise + Yamux transport, `gossipsub` pub-sub, `mDNS`
+   discovery). This is newly implemented and has not yet had field time or
+   independent review — treat it as "real transport, not yet battle-tested,"
+   not as "production-hardened."

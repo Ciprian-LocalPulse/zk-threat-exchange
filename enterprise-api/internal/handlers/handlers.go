@@ -9,64 +9,23 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
-	"sync"
-	"time"
 
 	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/auth"
+	"github.com/Ciprian-LocalPulse/zk-threat-exchange/enterprise-api/internal/store"
 )
 
-// ThreatCommitment mirrors the public output of core-node's ZKP module: a
-// commitment plus a proof, never the underlying witness/log data.
-type ThreatCommitment struct {
-	Commitment     string    `json:"commitment"`
-	NodeID         string    `json:"node_id"`
-	ReceivedAt     time.Time `json:"received_at"`
-	Corroborations int       `json:"corroborations"`
-}
-
-// Server holds the (in-memory, demo-grade) enterprise API state. A real
-// deployment would back this with Postgres + the actual core-node gRPC
-// client instead of an in-process map.
+// Server holds the enterprise API's dependencies. State is persisted in
+// PostgreSQL via `store` (see internal/store/store.go) — v0.1.0/v0.2.0 used
+// an in-memory map here, which lost all data on every restart.
 type Server struct {
-	mu          sync.RWMutex
-	commitments map[string]*ThreatCommitment
-	issuer      *auth.TokenIssuer
-	billing     *BillingMeter
+	store  *store.Store
+	issuer *auth.TokenIssuer
 }
 
-func NewServer(issuer *auth.TokenIssuer) *Server {
-	return &Server{
-		commitments: make(map[string]*ThreatCommitment),
-		issuer:      issuer,
-		billing:     NewBillingMeter(),
-	}
-}
-
-// BillingMeter tracks usage-based metering: decrypted-verification volume
-// and distinct connected nodes, the two dimensions the README's monetization
-// model bills on.
-type BillingMeter struct {
-	mu                 sync.Mutex
-	VerificationsTotal int
-	nodesSeen          map[string]bool
-}
-
-func NewBillingMeter() *BillingMeter {
-	return &BillingMeter{nodesSeen: make(map[string]bool)}
-}
-
-func (b *BillingMeter) RecordVerification(nodeID string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.VerificationsTotal++
-	b.nodesSeen[nodeID] = true
-}
-
-func (b *BillingMeter) ConnectedNodeCount() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return len(b.nodesSeen)
+func NewServer(issuer *auth.TokenIssuer, st *store.Store) *Server {
+	return &Server{store: st, issuer: issuer}
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
@@ -100,8 +59,7 @@ func (s *Server) AuthMiddleware(minRole auth.Role, next http.HandlerFunc) http.H
 }
 
 // HandleIngestCommitment accepts a verified threat commitment forwarded from
-// a customer's core-node instance and stores it for the enterprise dashboard.
-// (Analyst role or above.)
+// a customer's core-node instance and persists it. (Analyst role or above.)
 type ingestRequest struct {
 	Commitment string `json:"commitment"`
 	NodeID     string `json:"node_id"`
@@ -122,32 +80,30 @@ func (s *Server) HandleIngestCommitment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	s.mu.Lock()
-	entry, exists := s.commitments[req.Commitment]
-	if exists {
-		entry.Corroborations++
-	} else {
-		entry = &ThreatCommitment{
-			Commitment:     req.Commitment,
-			NodeID:         req.NodeID,
-			ReceivedAt:     time.Now().UTC(),
-			Corroborations: 1,
-		}
-		s.commitments[req.Commitment] = entry
+	entry, err := s.store.IngestCommitment(req.Commitment, req.NodeID)
+	if err != nil {
+		log.Printf("ingest commitment failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to store commitment")
+		return
 	}
-	s.mu.Unlock()
 
-	s.billing.RecordVerification(req.NodeID)
+	if err := s.store.RecordVerification(req.NodeID); err != nil {
+		// A billing-metering write failure shouldn't fail the customer's
+		// request — the commitment itself was already safely persisted
+		// above. Log it so it's investigable, but don't block the caller.
+		log.Printf("record verification failed (commitment was still stored): %v", err)
+	}
+
 	writeJSON(w, http.StatusOK, entry)
 }
 
 // HandleListCommitments returns the current dashboard feed. (Viewer or above.)
 func (s *Server) HandleListCommitments(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]*ThreatCommitment, 0, len(s.commitments))
-	for _, c := range s.commitments {
-		out = append(out, c)
+	out, err := s.store.ListCommitments()
+	if err != nil {
+		log.Printf("list commitments failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to list commitments")
+		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -155,9 +111,15 @@ func (s *Server) HandleListCommitments(w http.ResponseWriter, r *http.Request) {
 // HandleBillingSummary exposes the current metering counters used to
 // generate an enterprise customer's invoice. (Admin only.)
 func (s *Server) HandleBillingSummary(w http.ResponseWriter, r *http.Request) {
+	total, nodes, err := s.store.BillingSummary()
+	if err != nil {
+		log.Printf("billing summary failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to compute billing summary")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"verifications_total": s.billing.VerificationsTotal,
-		"connected_nodes":     s.billing.ConnectedNodeCount(),
+		"verifications_total": total,
+		"connected_nodes":     nodes,
 	})
 }
 

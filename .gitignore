@@ -5,6 +5,11 @@ core-node/target/
 # Also ignore a stray root-level target/ in case `cargo build` is ever run
 # from the repo root by mistake instead of from core-node/.
 /target/
+# SQLite database files created by core-node::memory_pool at runtime.
+core-node/data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
 
 # Julia
 heuristics-engine/Manifest.toml

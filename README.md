@@ -78,12 +78,12 @@ flowchart LR
         ZKP["ZKP Proof
         Schnorr / Fiat-Shamir"]
         Pool[("memory_pool
-        verified commitments")]
+        SQLite-persisted")]
     end
 
     subgraph Net["Gossip Network"]
-        G(("P2P broadcast
-        TTL-bounded"))
+        G(("libp2p gossipsub
+        + mDNS discovery"))
     end
 
     subgraph Infer["heuristics-engine — Julia"]
@@ -105,7 +105,8 @@ flowchart LR
 
     subgraph API["enterprise-api — Go"]
         Ingest["/v1/commitments/ingest"]
-        Dash["Dashboard + Billing"]
+        Dash["Dashboard + Billing
+        (PostgreSQL-backed)"]
         Hook["SOC Webhook
         (Make.com)"]
     end
@@ -343,9 +344,28 @@ cd zk-threat-exchange
 docker-compose -f deployments/docker-compose.yml up -d
 ```
 
-This starts three containers: the Rust P2P node, the Julia heuristics
-engine (runs its test/inference batch), and the Go enterprise API gateway
-on `localhost:8080`, in open-source/local mode — no license key required.
+This starts four containers: PostgreSQL (for `enterprise-api`'s persistent
+store), the Rust P2P node (with its own embedded SQLite pool file in a
+named volume), the Julia heuristics engine (runs its test/inference batch),
+and the Go enterprise API gateway on `localhost:8080` — all in
+open-source/local mode, no license key required. State in both Postgres and
+the SQLite pool file survives `docker-compose down` / `up` cycles (add `-v`
+to actually wipe it).
+
+### Seeing real peer-to-peer gossip in action
+
+Run two `core-node` instances on the same machine to watch mDNS discovery
+and `gossipsub` message propagation happen over a real (loopback) network:
+
+```bash
+cd core-node
+NODE_ID=node-a cargo run &
+NODE_ID=node-b cargo run
+```
+
+Each node prints its listening address, any peers it discovers via mDNS,
+and any gossip messages it receives — including the demo threat commitment
+each node publishes on startup.
 
 Running each component's native test suite:
 
@@ -354,7 +374,9 @@ Running each component's native test suite:
 cd core-node && cargo fmt -- --check && cargo clippy --all-targets -- -D warnings && cargo test
 
 # Go
-cd enterprise-api && go vet ./... && go test ./...
+# Go (requires a local Postgres — see enterprise-api/README.md for a
+# one-line docker run command, or run the full docker-compose stack above)
+cd enterprise-api && DATABASE_URL="postgres://postgres:postgres@localhost:5432/zkthreat?sslmode=disable" go vet ./... && go test ./...
 
 # Scheme
 cd rule-mutator/test && guile --no-auto-compile run_tests.scm
@@ -425,10 +447,21 @@ plainly, not buried:
    security. The remaining crypto-hardening item is the SNARK migration for
    compound predicates — see
    [`docs/snark_migration_spike.md`](./docs/snark_migration_spike.md).
-2. **Gossip transport is in-process**, not yet a real network layer
-   (`tokio::broadcast`, not `libp2p`).
+2. ~~Gossip transport is in-process.~~ **Resolved in v0.3.0** —
+   `core-node/src/p2p/` now runs real `libp2p` networking (TCP + Noise +
+   Yamux, `gossipsub` pub-sub, `mDNS` discovery). Newly shipped and not yet
+   independently reviewed or field-tested at scale beyond 2-node CI tests.
 3. **The enterprise-api JWT issuer is a development stand-in** (HMAC-SHA256,
    dependency-free) — not a vetted auth library or IdP integration.
+4. **mDNS discovery only works on a local network segment** (LAN, or a
+   shared Docker Compose network) — a wide-area deployment across the
+   public internet needs a bootstrap-node list or DHT-based discovery,
+   tracked in `docs/ROADMAP.md` Phase 2.
+5. ~~State is in-memory only and lost on restart.~~ **Resolved in v0.4.0** —
+   `core-node::memory_pool` persists to embedded SQLite; `enterprise-api`
+   persists to PostgreSQL. Neither has an automated backup/restore story
+   yet, and Postgres connection-pool settings haven't been tuned under
+   real load — see `docs/ROADMAP.md` Phase 3.
 
 Do not deploy this in a production SOC pipeline without addressing the
 above — see [`docs/ROADMAP.md`](./docs/ROADMAP.md) for the planned path.

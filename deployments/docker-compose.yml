@@ -3,10 +3,32 @@
 #
 # Usage (from repo root):
 #   docker-compose -f deployments/docker-compose.yml up -d
+#
+# v0.4.0: added a `postgres` service for enterprise-api's persistent store,
+# and a named volume for core-node's SQLite pool file — both survive
+# `docker-compose down` / `up` cycles now (add `-v` to actually wipe them).
 
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zk-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=zkthreat
+    volumes:
+      - zk-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   zk-threat-node:
     build:
       context: ..
@@ -14,6 +36,8 @@ services:
     container_name: zk-threat-node
     environment:
       - NODE_ID=local-node-1
+    volumes:
+      - zk-core-node-data:/data
     restart: unless-stopped
 
   heuristics-engine:
@@ -35,6 +59,14 @@ services:
     environment:
       - ZKT_ENV=development
       - ZKT_JWT_SECRET=change-me-in-production
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/zkthreat?sslmode=disable
     depends_on:
-      - zk-threat-node
+      postgres:
+        condition: service_healthy
+      zk-threat-node:
+        condition: service_started
     restart: unless-stopped
+
+volumes:
+  zk-postgres-data:
+  zk-core-node-data:

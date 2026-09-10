@@ -34,7 +34,8 @@ production auth system.
 
 ## Billing dimensions
 
-Two metered dimensions, tracked by `handlers.BillingMeter`:
+Two metered dimensions, tracked by `store.Store` (PostgreSQL-backed as of
+v0.4.0 — see `internal/store/store.go`):
 
 1. **Verifications total** — every accepted `POST /v1/commitments/ingest`
    call, i.e. every zero-knowledge proof the platform verified on the

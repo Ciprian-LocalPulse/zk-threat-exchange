@@ -3,6 +3,7 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /build
 COPY enterprise-api/go.mod ./go.mod
+COPY enterprise-api/go.sum ./go.sum
 COPY enterprise-api/cmd ./cmd
 COPY enterprise-api/internal ./internal
 RUN go build -o /build/server ./cmd/server

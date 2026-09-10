@@ -1,6 +1,6 @@
 [package]
 name = "zk-threat-core-node"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Ciprian Ștefan Pleșca"]
 description = "P2P gossip node with zero-knowledge threat-indicator proofs"
@@ -17,3 +17,23 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hex = "0.4"
 tokio = { version = "1", features = ["full"] }
+# Production-grade prime-order group for the ZKP module (same primitive
+# family used by Signal, WireGuard, and Ed25519). Replaces the toy
+# small-prime Schnorr group used in v0.1.0 — see docs/zero_knowledge_math.md.
+curve25519-dalek = { version = "4", features = ["rand_core"] }
+# Pinned: newer zeroize releases require the edition2024 Cargo feature,
+# which is not yet stable on the Rust toolchain this project targets.
+zeroize = "=1.7.0"
+# Real P2P transport + pub-sub gossip protocol for the network layer
+# (v0.3.0 — replaces the v0.2.0 in-process tokio::broadcast simulation).
+# gossipsub is the same pub-sub primitive used by Ethereum 2.0, IPFS, and
+# Filecoin — a natural fit for propagating verified threat commitments.
+libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "macros", "tokio"] }
+futures = "0.3"
+# Embedded persistence for memory_pool (v0.4.0 — replaces the in-memory-only
+# HashMap so accepted commitments survive a node restart). SQLite is chosen
+# over a client-server DB here because core-node is meant to run standalone
+# on a single host without external infrastructure dependencies; the
+# "bundled" feature compiles SQLite from source, so no system package is
+# required.
+rusqlite = { version = "0.31", features = ["bundled"] }
