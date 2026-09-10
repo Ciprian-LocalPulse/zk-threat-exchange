@@ -59,9 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    println!(
-        "[{node_id}] waiting a moment for mDNS to discover any peers on this network..."
-    );
+    println!("[{node_id}] waiting a moment for mDNS to discover any peers on this network...");
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // Demo: simulate detecting a threat locally, proving it in zero
