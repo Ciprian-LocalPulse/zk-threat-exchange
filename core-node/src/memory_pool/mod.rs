@@ -221,7 +221,10 @@ mod tests {
             "zk-threat-exchange-test-{}",
             std::process::id()
         ));
-        std::fs::create_dir_all(&tmp_dir).unwrap();
+        
+        // Creăm efectiv directorul înainte de a-l folosi
+        std::fs::create_dir_all(&tmp_dir).expect("Eșec la crearea directorului temporar");
+        
         let db_path = tmp_dir.join("pool.sqlite3");
         let db_path_str = db_path.to_str().unwrap();
 
@@ -245,6 +248,7 @@ mod tests {
             assert!(reopened.get_proof(commitment).is_some());
         }
 
+        // Curățăm directorul la final
         let _ = std::fs::remove_dir_all(&tmp_dir);
     }
 }
